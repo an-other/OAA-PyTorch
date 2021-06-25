@@ -1,6 +1,7 @@
 import sys
-sys.path.append('/home/ubuntu/Project/OAA-PyTorch/')
 import os
+sys.path.append(os.getcwd())
+
 import cv2
 import torch
 import numpy as np
@@ -26,17 +27,17 @@ def colormap(index):
     
 def get_arguments():
     parser = argparse.ArgumentParser(description='OAA')
-    parser.add_argument("--root_dir", type=str, default='./')
-    parser.add_argument("--save_dir", type=str, default='')
-    parser.add_argument("--img_dir", type=str, default='')
-    parser.add_argument("--test_list", type=str, default='')
+    parser.add_argument("--root_dir", type=str, default='/content/OAA-PyTorch/exp_iam/')
+    parser.add_argument("--save_dir", type=str, default='/content/OAA-PyTorch/30_oaa_15_iam/')
+    parser.add_argument("--img_dir", type=str, default='/content/OAA-PyTorch/VOCdevkit/VOC2012/JPEGImages/')
+    parser.add_argument("--test_list", type=str, default='/content/OAA-PyTorch/data/voc12/train_cls.txt')
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--input_size", type=int, default=256)
+    parser.add_argument("--input_size", type=int, default=224)
     parser.add_argument("--dataset", type=str, default='imagenet')
     parser.add_argument("--num_classes", type=int, default=20)
     parser.add_argument("--arch", type=str,default='vgg_v0')
-    parser.add_argument("--restore_from", type=str, default='')
-    parser.add_argument("--num_workers", type=int, default=20)
+    parser.add_argument("--restore_from", type=str, default='/content/OAA-PyTorch/exp_iam/oaa_30_iam_15.pth')
+    parser.add_argument("--num_workers", type=int, default=2)
 
     return parser.parse_args()
 
