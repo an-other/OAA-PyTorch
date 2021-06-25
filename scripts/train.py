@@ -22,26 +22,27 @@ from tqdm import trange, tqdm
 
 def get_arguments():
     parser = argparse.ArgumentParser(description='The Pytorch code of OAA')
-    parser.add_argument("--img_dir", type=str, default='', help='Directory of training images')
-    parser.add_argument("--train_list", type=str, default='None')
-    parser.add_argument("--test_list", type=str, default='None')
+    parser.add_argument("--img_dir", type=str, default='/content/OAA-PyTorch/VOCdevkit/VOC2012/JPEGImages/', help='Directory of training images')
+    parser.add_argument("--train_list", type=str, default='/content/OAA-PyTorch/data/voc12/train_cls.txt')
+    parser.add_argument("--test_list", type=str, default='/content/OAA-PyTorch/data/voc12/val_cls.txt')
     parser.add_argument("--batch_size", type=int, default=1)
     parser.add_argument("--iter_size", type=int, default=5)
-    parser.add_argument("--input_size", type=int, default=256)
+    parser.add_argument("--input_size", type=int, default=224)
     parser.add_argument("--crop_size", type=int, default=224)
     parser.add_argument("--dataset", type=str, default='imagenet')
     parser.add_argument("--num_classes", type=int, default=20)
     parser.add_argument("--lr", type=float, default=0.001)
     parser.add_argument("--weight_decay", type=float, default=0.0005)
-    parser.add_argument("--decay_points", type=str, default='61')
-    parser.add_argument("--epoch", type=int, default=15)
-    parser.add_argument("--num_workers", type=int, default=20)
+    parser.add_argument("--decay_points", type=str, default='10')
+    parser.add_argument("--epoch", type=int, default=30)
+    parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--disp_interval", type=int, default=100)
-    parser.add_argument("--snapshot_dir", type=str, default='')
+    parser.add_argument("--snapshot_dir", type=str, default='exp')
     parser.add_argument("--resume", type=str, default='False')
     parser.add_argument("--global_counter", type=int, default=0)
     parser.add_argument("--current_epoch", type=int, default=0)
-    parser.add_argument("--att_dir", type=str, default='./runs/exp1/')
+    parser.add_argument("--att_dir", type=str, default='/content/OAA-PyTorch/content/OAA-PyTorch/runs/exp1/')
+    parser.add_argument("--restore_from", type=str, default='/content/drive/MyDrive/oaa/imagenet_epoch_19.pth')
 
     return parser.parse_args()
 
@@ -63,6 +64,30 @@ def get_model(args):
 
     return  model, optimizer
 
+def load_checkpoint(args):
+    model = vgg.vgg16(num_classes=args.num_classes,att_dir=args.att_dir, training_epoch=args.epoch)
+    model = torch.nn.DataParallel(model).cuda()
+
+    pretrained_dict = torch.load(args.restore_from)['state_dict']
+    optimizer_dict = torch.load(args.restore_from)['optimizer']
+    model_dict = model.state_dict()
+
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict.keys()}
+    print("Weights cannot be loaded:")
+    print([k for k in model_dict.keys() if k not in pretrained_dict.keys()])
+
+    model_dict.update(pretrained_dict)
+    model.load_state_dict(model_dict)
+    print('load model successfully')
+    param_groups = model.module.get_parameter_groups()
+    optimizer = optim.SGD([
+        {'params': param_groups[0], 'lr': args.lr},
+        {'params': param_groups[1], 'lr': 2*args.lr},
+        {'params': param_groups[2], 'lr': 10*args.lr},
+        {'params': param_groups[3], 'lr': 20*args.lr}], momentum=0.9, weight_decay=args.weight_decay, nesterov=True)
+    optimizer.load_state_dict(optimizer_dict)
+    print('load optimizer successfully')
+    return model,optimizer
 
 def validate(model, val_loader):
     
@@ -87,16 +112,19 @@ def train(args):
     losses = AverageMeter()
     
     total_epoch = args.epoch
-    global_counter = args.global_counter
-    current_epoch = args.current_epoch
+    #global_counter = args.global_counter
+    global_counter = torch.load(args.restore_from)['global_counter']
+    #current_epoch = args.current_epoch
+    current_epoch = torch.load(args.restore_from)['epoch']
 
     train_loader, val_loader = train_data_loader(args)
     max_step = total_epoch*len(train_loader)
     args.max_step = max_step 
     print('Max step:', max_step)
     
-    model, optimizer = get_model(args)
-    print(model)
+    #model, optimizer = get_model(args)
+    model,optimizer=load_checkpoint(args)
+    #print(model)
     model.train()
     end = time.time()
 
@@ -107,7 +135,7 @@ def train(args):
         res = my_optim.reduce_lr(args, optimizer, current_epoch)
         steps_per_epoch = len(train_loader)
         
-        validate(model, val_loader)
+        #validate(model, val_loader)
         index = 0  
         flag = 0
         for idx, dat in enumerate(train_loader):
@@ -143,7 +171,7 @@ def train(args):
                         current_epoch, global_counter%len(train_loader), len(train_loader), 
                         optimizer.param_groups[0]['lr'], loss=losses))
 
-        if current_epoch == args.epoch-1:
+        if (current_epoch == args.epoch-1) | (current_epoch%5==0):
             save_checkpoint(args,
                             {
                                 'epoch': current_epoch,
