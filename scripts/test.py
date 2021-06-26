@@ -1,6 +1,7 @@
 import sys
-sys.path.append('/home/ubuntu/Project/OAA-PyTorch/')
 import os
+sys.path.append(os.getcwd())
+
 import cv2
 import torch
 import numpy as np
@@ -99,3 +100,4 @@ def validate(args):
 if __name__ == '__main__':
     args = get_arguments()
     validate(args)
+
