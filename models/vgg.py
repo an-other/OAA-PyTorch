@@ -14,6 +14,7 @@ class VGG(nn.Module):
     def __init__(self, features, num_classes=1000, init_weights=True, att_dir='./runs/', training_epoch=15):
         super(VGG, self).__init__()
         self.features = features
+
         self.extra_convs = nn.Sequential(
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
             nn.ReLU(True),
@@ -21,20 +22,55 @@ class VGG(nn.Module):
             nn.ReLU(True),
             nn.Conv2d(512, 512, kernel_size=3, padding=1),
             nn.ReLU(True),
-            nn.Conv2d(512,20,1)            
+            #nn.Conv2d(512,20,1)
         )
+        self.fc=nn.Conv2d(512,20,1)
+        self.fc2=nn.Conv2d(1024+3, 1024, 1, bias=False)
+        '''
+        self.conv1= nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv2= nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv3= nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv4= nn.Conv2d(512,20,1)
+        '''
         self._initialize_weights()
         self.training_epoch = training_epoch
         self.att_dir = att_dir
         if not os.path.exists(self.att_dir):
             os.makedirs(self.att_dir)
 
+    def PCM(self, cam, f):
+        n, c, h, w = f.size()
+        cam = F.interpolate(cam, (h, w), mode='bilinear', align_corners=True).view(n, -1, h * w)
+        f = self.fc2(f)
+        f = f.view(n, -1, h * w)
+
+        f = f / (torch.norm(f, dim=1, keepdim=True) + 1e-5)
+
+        aff = F.relu(torch.matmul(f.transpose(1, 2), f), inplace=True)
+        aff = aff / (torch.sum(aff, dim=1, keepdim=True) + 1e-5)
+        cam_rv = torch.matmul(cam, aff).view(n, -1, h, w)
+
+        return cam_rv
+
     def forward(self, x, epoch=1, label=None, index=None):
+        input=x
+
         x = self.features(x)
+        cat1=x
         x = self.extra_convs(x)
-        
-        self.map1 = x.clone().detach()
-        x = F.avg_pool2d(x, kernel_size=(x.size(2), x.size(3)), padding=0)
+        cat2=x
+        b,c,h,w=cat2.shape
+        #x_s (b,3,28,37)
+        x_s = F.interpolate(input, (h, w), mode='bilinear', align_corners=True)
+        f=torch.cat([cat1,cat2,x_s],dim=1) #(3+512+512)
+
+        x=self.fc(x)
+        self.map1 = x.clone().detach() #1,20,h,w
+
+        f_sa = self.PCM(x,f)
+        #print('f_sa',f_sa.shape)
+
+        x = F.avg_pool2d(f_sa, kernel_size=(x.size(2), x.size(3)), padding=0)
         x = x.view(-1, 20)
         
         ###  the online attention accumulation process
@@ -144,5 +180,5 @@ cfg = {
 def vgg16(pretrained=False, **kwargs):
     model = VGG(make_layers(cfg['D1']), **kwargs)  
     if pretrained:
-        model.load_state_dict(model_zoo.load_url(model_urls['vgg16']), strict=False)
+        model.load_state_dict(torch.load('E:/0github/vgg16_pre.pth'), strict=False)
     return model
