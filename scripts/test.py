@@ -27,17 +27,17 @@ def colormap(index):
     
 def get_arguments():
     parser = argparse.ArgumentParser(description='ACoL')
-    parser.add_argument("--root_dir", type=str, default='')
-    parser.add_argument("--save_dir", type=str, default='')
-    parser.add_argument("--img_dir", type=str, default='')
-    parser.add_argument("--test_list", type=str, default='')
+    parser.add_argument("--root_dir", type=str, default='.')
+    parser.add_argument("--save_dir", type=str, default='/content/OAA-PyTorch/sa_20_cam/')
+    parser.add_argument("--img_dir", type=str, default='/content/OAA-PyTorch/VOCdevkit/VOC2012/JPEGImages/')
+    parser.add_argument("--test_list", type=str, default='/content/OAA-PyTorch/data/voc12/train_cls.txt')
     parser.add_argument("--batch_size", type=int, default=1)
-    parser.add_argument("--input_size", type=int, default=256)
+    parser.add_argument("--input_size", type=int, default=224)
     parser.add_argument("--dataset", type=str, default='voc2012')
     parser.add_argument("--num_classes", type=int, default=20)
-    parser.add_argument("--num_workers", type=int, default=20)
+    parser.add_argument("--num_workers", type=int, default=2)
     parser.add_argument("--arch", type=str,default='vgg_v0')
-    parser.add_argument("--restore_from", type=str, default='')
+    parser.add_argument("--restore_from", type=str, default='/content/drive/MyDrive/sa_20.pth')
 
     return parser.parse_args()
 
@@ -100,4 +100,3 @@ def validate(args):
 if __name__ == '__main__':
     args = get_arguments()
     validate(args)
-
