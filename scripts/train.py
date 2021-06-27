@@ -42,7 +42,8 @@ def get_arguments():
     parser.add_argument("--global_counter", type=int, default=0)
     parser.add_argument("--current_epoch", type=int, default=0)
     parser.add_argument("--att_dir", type=str, default='/content/OAA-PyTorch/content/OAA-PyTorch/runs/exp1/')
-    parser.add_argument("--restore_from", type=str, default='/content/drive/MyDrive/oaa/imagenet_epoch_19.pth')
+    parser.add_argument("--restore_from", type=str, default='/content/drive/MyDrive/vgg16_pre.pth')
+    parser.add_argument("--load_checkpoints", type=bool, default=False)
 
     return parser.parse_args()
 
@@ -112,18 +113,22 @@ def train(args):
     losses = AverageMeter()
     
     total_epoch = args.epoch
-    #global_counter = args.global_counter
-    global_counter = torch.load(args.restore_from)['global_counter']
-    #current_epoch = args.current_epoch
-    current_epoch = torch.load(args.restore_from)['epoch']
+    
 
     train_loader, val_loader = train_data_loader(args)
     max_step = total_epoch*len(train_loader)
     args.max_step = max_step 
     print('Max step:', max_step)
+    if args.load_checkpoints:
+      model,optimizer=load_checkpoint(args)
+      global_counter = torch.load(args.restore_from)['global_counter']
+      current_epoch = torch.load(args.restore_from)['epoch']
+    else:
+      model, optimizer = get_model(args)
+      global_counter = args.global_counter
+      current_epoch = args.current_epoch
     
-    #model, optimizer = get_model(args)
-    model,optimizer=load_checkpoint(args)
+   
     #print(model)
     model.train()
     end = time.time()
